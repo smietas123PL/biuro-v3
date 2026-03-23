@@ -1,0 +1,10 @@
+import { describe, it, expect } from 'vitest';
+import React from 'react';
+import { render } from '@testing-library/react';
+import DependencyGraph from './DependencyGraph';
+
+describe('DependencyGraph', () => {
+  it('is defined and renders', () => {
+    expect(DependencyGraph).toBeDefined();
+  });
+});

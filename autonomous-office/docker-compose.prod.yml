@@ -1,0 +1,35 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../Dockerfile.backend
+      target: base
+    environment:
+      DB_DIR: /app/data
+      NODE_ENV: production
+    env_file:
+      - .env
+    ports:
+      - "3010:3001"
+    volumes:
+      - sqlite-data-prod:/app/data
+    restart: unless-stopped
+    command: ["node", "server.js"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
+      target: base
+    ports:
+      - "3005:5173"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+    command: sh -c "npm run build && npm run preview -- --host 0.0.0.0 --port 5173"
+
+volumes:
+  sqlite-data-prod:
+    name: biuro_sqlite-data-prod

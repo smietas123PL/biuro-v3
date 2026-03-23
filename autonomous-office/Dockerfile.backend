@@ -1,0 +1,13 @@
+FROM node:20-alpine AS base
+RUN apk add --no-cache python3 make g++ sqlite tzdata
+ENV TZ=Europe/Warsaw
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --build-from-source || npm install
+COPY . .
+
+FROM base AS dev
+RUN npm install -g nodemon@3
+RUN mkdir -p /app/data
+EXPOSE 3001
+CMD ["nodemon","--watch",".","--ignore","node_modules","--ignore","data","--ext","js,mjs,json","--delay","500","server.js"]
