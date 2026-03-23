@@ -16,13 +16,23 @@ export default function TemplateLoader() {
   const loadTemplate = async (id) => {
     setLoading(true);
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/templates/${id}/apply`, {
-        method: 'POST'
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/templates/${id}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ company_id: 1 })
       });
-      // W normalnej apce tutaj pokazalibyśmy Toast o sukcesie
+      
+      if (!response.ok) {
+        throw new Error(`Błąd serwera: ${response.status}`);
+      }
+
       alert('Szablon załadowany pomyślnie. Nowe role zostały zaktualizowane w bazie.');
+      window.location.reload(); // Odśwież aby zobaczyć nowych agentów
     } catch (err) {
-      console.error(err);
+      console.error('Template loading failed:', err);
+      alert('Nie udało się wczytać szablonu: ' + err.message);
     } finally {
       setLoading(false);
     }

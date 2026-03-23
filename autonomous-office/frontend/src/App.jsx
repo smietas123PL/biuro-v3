@@ -89,6 +89,7 @@ function App() {
         {activeTab === 'status' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             <StatusDashboard />
+            <TemplateLoader />
             <TaskQueuePanel />
           </div>
         )}
