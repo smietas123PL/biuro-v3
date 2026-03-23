@@ -6,7 +6,9 @@
     "dev": "nodemon --watch . --ignore node_modules --ignore data --ext js,mjs,json --delay 500 server.js",
     "start": "node server.js",
     "test": "node --experimental-vm-modules node_modules/.bin/vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
@@ -15,13 +17,16 @@
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^4.18.3",
+    "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
     "mathjs": "^15.1.1",
     "openai": "^6.32.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "eslint": "^9.39.4",
     "nodemon": "^3.1.0",
+    "prettier": "^3.8.1",
     "supertest": "^7.0.0",
     "vitest": "^1.6.0"
   }

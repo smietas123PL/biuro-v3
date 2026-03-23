@@ -55,7 +55,7 @@ function getDemoResponse(agent, task, tools) {
   return `[Demo Simulation] Przetworzono zadanie "${task.description}" przez agenta ${agent.name}. Wszystko gotowe!`;
 }
 
-async function callOpenAI(agent, task, tools) {
+async function callOpenAI(agent, task) {
   const apiKey = (agent.api_key ? decrypt(agent.api_key) : null) || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('Missing OpenAI API Key');
   
@@ -77,7 +77,7 @@ async function callOpenAI(agent, task, tools) {
   return { text: response.choices[0].message.content, cost: calcCost || 0.01 };
 }
 
-async function callAnthropic(agent, task, tools) {
+async function callAnthropic(agent, task) {
   const apiKey = (agent.api_key ? decrypt(agent.api_key) : null) || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('Missing Anthropic API Key');
   

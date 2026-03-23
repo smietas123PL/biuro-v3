@@ -1,5 +1,4 @@
 import db from '../db.js';
-import { toolsHandlers } from './tools.js';
 import { callLLMWithTools } from './llm.js';
 
 export async function processAgents() {
@@ -89,10 +88,23 @@ export async function processAgents() {
           // 11. Deduct budget
           db.prepare('UPDATE agents SET budget = budget - ? WHERE id = ?').run(llmResult.cost, agent.id);
 
+          // 11b. Update daily cost snapshot
+          const today = new Date().toISOString().split('T')[0];
+          db.prepare(`
+            INSERT INTO daily_cost_snapshots (company_id, agent_id, date, total_cost, call_count)
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(company_id, agent_id, date) DO UPDATE SET
+              total_cost = total_cost + excluded.total_cost,
+              call_count = call_count + 1
+          `).run(agent.company_id, agent.id, today, llmResult.cost);
+
           // 13. Sprawdź Budget Alerts & auto-shutdown
           const updatedAgent = db.prepare('SELECT budget, initial_budget FROM agents WHERE id = ?').get(agent.id);
           if (updatedAgent.budget <= 0 && updatedAgent.initial_budget > 0) {
             db.prepare('UPDATE agents SET active = 0 WHERE id = ?').run(agent.id);
+            db.prepare('INSERT INTO budget_alert_log (company_id, alert_type, threshold_pct, current_cost, budget_limit, detail) VALUES (?, ?, ?, ?, ?, ?)')
+               .run(agent.company_id, 'BUDGET_EXCEEDED', 100, updatedAgent.initial_budget - updatedAgent.budget, updatedAgent.initial_budget, `Agent ${agent.name} budget limit exceeded.`);
+            
             db.prepare('INSERT INTO audit_log (company_id, agent_id, agent_name, action, detail) VALUES (?, ?, ?, ?, ?)')
                .run(agent.company_id, agent.id, agent.name, 'AGENT_DEACTIVATED', `Budget limit exceeded.`);
           }

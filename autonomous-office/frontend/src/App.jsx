@@ -26,16 +26,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('status');
   const [showPalette, setShowPalette] = useState(false);
   const [showCheatSheet, setShowCheatSheet] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(!localStorage.getItem('onboardingDone'));
   const { theme, toggleTheme } = useTheme();
-
-  // MVP: Sprawdzamy czy to pierwsze uruchomienie (Onboarding)
-  useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('onboardingDone');
-    if (!hasSeenOnboarding) {
-      setShowOnboarding(true);
-    }
-  }, []);
 
   const completeOnboarding = () => {
     localStorage.setItem('onboardingDone', 'true');
