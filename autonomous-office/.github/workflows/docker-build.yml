@@ -11,5 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm install
+        npm test
+        
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm install
+        npm test
+
     - name: Build Docker images
       run: docker compose -f docker-compose.yml build

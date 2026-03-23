@@ -2,7 +2,11 @@ import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 12 bytes for GCM
-const KEY = process.env.ENCRYPTION_KEY || 'default-long-secret-key-32-chars-!!';
+
+if (!process.env.ENCRYPTION_KEY) {
+  throw new Error('CRITICAL: ENCRYPTION_KEY environment variable is required for security.');
+}
+const KEY = process.env.ENCRYPTION_KEY.padEnd(32).slice(0, 32);
 
 export function encrypt(text) {
   if (!text) return null;

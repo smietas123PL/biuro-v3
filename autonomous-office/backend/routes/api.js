@@ -22,6 +22,18 @@ const taskSchema = z.object({
   priority: z.number().int().min(0).optional().default(0)
 });
 
+const patchAgentSchema = z.object({
+  budget: z.number().min(0).optional(),
+  active: z.union([z.boolean(), z.number().int().min(0).max(1)]).optional(),
+  parent_id: z.number().int().positive().nullable().optional()
+});
+
+const patchTaskSchema = z.object({
+  status: z.enum(['pending', 'working', 'completed', 'rejected']).optional(),
+  priority: z.number().int().min(0).optional(),
+  scheduled_for: z.string().datetime().nullable().optional()
+});
+
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 router.get('/audit', (req, res) => res.json(db.prepare('SELECT * FROM audit_log ORDER BY ts DESC LIMIT 100').all()));
 
@@ -78,7 +90,8 @@ router.get('/companies/:id/export/report', (req, res) => res.json([]));
 // Templates
 router.get('/templates', (req, res) => res.json(db.prepare('SELECT * FROM templates').all()));
 router.post('/templates/:id/apply', (req, res) => {
-  const companyId = 1; // Default
+  const { company_id } = req.body;
+  const companyId = company_id || 1; 
   const template = db.prepare('SELECT * FROM templates WHERE id = ?').get(req.params.id);
   if (!template) return res.status(404).json({ error: 'Template not found' });
   
@@ -136,22 +149,31 @@ router.delete('/agents/:id', (req, res) => {
   res.json({ success: true });
 });
 router.patch('/agents/:id/budget', (req, res) => {
-  const { budget } = req.body;
+  const result = patchAgentSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { budget } = result.data;
   db.prepare('UPDATE agents SET budget = ?, initial_budget = ? WHERE id = ?').run(budget, budget, req.params.id);
   res.json({ success: true });
 });
 router.post('/agents/:id/budget', (req, res) => {
-  const { budget } = req.body;
+  const result = patchAgentSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { budget } = result.data;
   db.prepare('UPDATE agents SET budget = ?, initial_budget = ? WHERE id = ?').run(budget, budget, req.params.id);
   res.json({ success: true });
 });
 router.patch('/agents/:id/active', (req, res) => {
-  const { active } = req.body;
-  db.prepare('UPDATE agents SET active = ? WHERE id = ?').run(active ? 1 : 0, req.params.id);
+  const result = patchAgentSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { active } = result.data;
+  const activeVal = typeof active === 'boolean' ? (active ? 1 : 0) : active;
+  db.prepare('UPDATE agents SET active = ? WHERE id = ?').run(activeVal, req.params.id);
   res.json({ success: true });
 });
 router.patch('/agents/:id/parent', (req, res) => {
-  const { parent_id } = req.body;
+  const result = patchAgentSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { parent_id } = result.data;
   db.prepare('UPDATE agents SET parent_id = ? WHERE id = ?').run(parent_id, req.params.id);
   res.json({ success: true });
 });
@@ -233,7 +255,9 @@ router.patch('/tasks/:id/done', (req, res) => {
   res.json({ success: true });
 });
 router.patch('/tasks/:id/priority', (req, res) => {
-  const { priority } = req.body;
+  const result = patchTaskSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { priority } = result.data;
   db.prepare('UPDATE tasks SET priority = ? WHERE id = ?').run(priority, req.params.id);
   res.json({ success: true });
 });
@@ -243,6 +267,13 @@ router.patch('/tasks/:id/archive', (req, res) => {
 });
 router.patch('/tasks/:id/unarchive', (req, res) => {
   db.prepare('UPDATE tasks SET archived_at = NULL WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+router.patch('/tasks/:id/schedule', (req, res) => {
+  const result = patchTaskSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { scheduled_for } = result.data;
+  db.prepare('UPDATE tasks SET scheduled_for = ? WHERE id = ?').run(scheduled_for, req.params.id);
   res.json({ success: true });
 });
 router.post('/tasks/:id/delegate', (req, res) => res.json({ success: true }));

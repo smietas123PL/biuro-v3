@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audyt v2: autonomous-office</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --border: #1e2229;
+    --border2: #2a3040;
+    --text: #c9d1e0;
+    --muted: #5a6480;
+    --accent: #3b82f6;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --orange: #f97316;
+    --purple: #a78bfa;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 40px 28px 80px; position: relative; z-index: 1; }
+
+  .header { border-bottom: 1px solid var(--border2); padding-bottom: 32px; margin-bottom: 40px; }
+  .repo-label { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: var(--sans); font-size: 2.4rem; font-weight: 800; color: #fff; line-height: 1.1; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  .meta-row { display: flex; gap: 24px; margin-top: 14px; flex-wrap: wrap; }
+  .meta-item { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .meta-item strong { color: var(--text); }
+
+  /* Delta banner */
+  .delta-banner {
+    background: linear-gradient(135deg, #0d1f14 0%, #0a1a0f 100%);
+    border: 1px solid #1a4a2a;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 40px;
+  }
+  .delta-title { font-weight: 700; font-size: 1rem; color: var(--green); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .delta-list { display: flex; flex-direction: column; gap: 6px; }
+  .delta-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+  .delta-tag { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+  .dt-fix { background: rgba(16,185,129,.2); color: var(--green); }
+  .dt-partial { background: rgba(245,158,11,.2); color: var(--yellow); }
+  .delta-text { color: var(--text); }
+
+  /* Compare scores */
+  .score-compare {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 14px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .score-card.green::before { background: var(--green); }
+  .score-card.yellow::before { background: var(--yellow); }
+  .score-card.orange::before { background: var(--orange); }
+  .score-card.red::before { background: var(--red); }
+  .score-card.blue::before { background: var(--accent); }
+
+  .score-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .score-row { display: flex; align-items: baseline; justify-content: center; gap: 6px; }
+  .score-old { font-family: var(--mono); font-size: 1.1rem; font-weight: 600; text-decoration: line-through; color: var(--muted); }
+  .score-new { font-family: var(--mono); font-size: 2rem; font-weight: 700; line-height: 1; }
+  .score-new.green { color: var(--green); }
+  .score-new.yellow { color: var(--yellow); }
+  .score-new.orange { color: var(--orange); }
+  .score-new.red { color: var(--red); }
+  .score-new.blue { color: var(--accent); }
+  .score-delta { font-family: var(--mono); font-size: 11px; margin-top: 4px; }
+  .sd-up { color: var(--green); }
+  .sd-same { color: var(--muted); }
+
+  /* Verdict */
+  .verdict { background: linear-gradient(135deg, #111a2e 0%, #0f1520 100%); border: 1px solid #1e3a5f; border-radius: 12px; padding: 22px 26px; margin-bottom: 44px; display: flex; align-items: flex-start; gap: 18px; }
+  .verdict-icon { font-size: 2rem; flex-shrink: 0; }
+  .verdict-title { font-weight: 700; font-size: 1.05rem; color: #fff; margin-bottom: 6px; }
+  .verdict-text { color: var(--text); font-size: 14px; line-height: 1.7; }
+
+  .section { margin-bottom: 44px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .section-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .si-green { background: rgba(16,185,129,.15); }
+  .si-red { background: rgba(239,68,68,.15); }
+  .si-yellow { background: rgba(245,158,11,.15); }
+  .si-blue { background: rgba(59,130,246,.15); }
+  .si-orange { background: rgba(249,115,22,.15); }
+
+  h2 { font-family: var(--sans); font-size: 1.1rem; font-weight: 700; color: #fff; }
+  .section-score { margin-left: auto; font-family: var(--mono); font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+  .ss-green { background: rgba(16,185,129,.15); color: var(--green); }
+  .ss-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+  .ss-orange { background: rgba(249,115,22,.15); color: var(--orange); }
+  .ss-red { background: rgba(239,68,68,.15); color: var(--red); }
+  .ss-blue { background: rgba(59,130,246,.15); color: var(--accent); }
+
+  .findings { display: flex; flex-direction: column; gap: 10px; }
+  .finding { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid; border-radius: 8px; padding: 14px 16px; }
+  .finding.good { border-left-color: var(--green); }
+  .finding.warn { border-left-color: var(--yellow); }
+  .finding.bad { border-left-color: var(--red); }
+  .finding.info { border-left-color: var(--accent); }
+  .finding.medium { border-left-color: var(--orange); }
+  .finding.resolved { border-left-color: var(--green); opacity: 0.85; }
+
+  .finding-title { font-weight: 700; font-size: 13px; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+  .badge-good { background: rgba(16,185,129,.2); color: var(--green); }
+  .badge-warn { background: rgba(245,158,11,.2); color: var(--yellow); }
+  .badge-bad { background: rgba(239,68,68,.2); color: var(--red); }
+  .badge-info { background: rgba(59,130,246,.2); color: var(--accent); }
+  .badge-medium { background: rgba(249,115,22,.2); color: var(--orange); }
+  .badge-resolved { background: rgba(16,185,129,.15); color: var(--green); border: 1px solid rgba(16,185,129,.3); }
+  .badge-partial { background: rgba(245,158,11,.15); color: var(--yellow); border: 1px solid rgba(245,158,11,.3); }
+
+  .finding-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .finding-desc code { font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,.05); padding: 1px 5px; border-radius: 3px; color: #8bb8ff; }
+
+  .code-block { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-family: var(--mono); font-size: 12px; color: #8bb8ff; margin-top: 8px; overflow-x: auto; line-height: 1.6; white-space: pre; }
+  .code-comment { color: #556070; }
+  .code-red { color: #ff7b72; }
+  .code-green { color: #7ee787; }
+  .code-yellow { color: #e3b341; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border2); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: var(--mono); font-size: 12px; color: #8bb8ff; }
+  tbody tr:hover td { background: rgba(255,255,255,.02); }
+
+  .action-list { display: flex; flex-direction: column; gap: 8px; }
+  .action-item { display: flex; align-items: flex-start; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .action-item.done { opacity: 0.5; }
+  .action-item.done .action-title { text-decoration: line-through; }
+  .action-prio { font-family: var(--mono); font-size: 10px; font-weight: 700; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .p1 { background: rgba(239,68,68,.2); color: var(--red); }
+  .p2 { background: rgba(249,115,22,.2); color: var(--orange); }
+  .p3 { background: rgba(245,158,11,.2); color: var(--yellow); }
+  .p4 { background: rgba(59,130,246,.2); color: var(--accent); }
+  .pdone { background: rgba(16,185,129,.2); color: var(--green); }
+  .action-content { flex: 1; }
+  .action-title { font-weight: 700; font-size: 13px; color: #fff; margin-bottom: 3px; }
+  .action-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  .summary-bar { background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; padding: 20px 24px; margin-top: 44px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center; }
+  .sum-item-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .sum-item-val { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+  .sum-divider { border-left: 1px solid var(--border); }
+
+  hr.sep { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="repo-label">🔄 Audyt aktualizacyjny · 3 nowe commity</div>
+    <h1>autonomous<span>-office</span> <span style="font-size:1.4rem;color:var(--muted)">v2</span></h1>
+    <div class="meta-row">
+      <span class="meta-item">Repo: <strong>smietas123PL/biuro-v3</strong></span>
+      <span class="meta-item">Poprzedni commit: <strong>1d6f509</strong></span>
+      <span class="meta-item">Aktualny HEAD: <strong>54fc1f3</strong></span>
+      <span class="meta-item">Data: <strong>23.03.2026</strong></span>
+      <span class="meta-item">Nowe pliki: <strong>+encryption.js, +main.jsx fetch interceptor</strong></span>
+    </div>
+  </div>
+
+  <!-- Delta banner -->
+  <div class="delta-banner">
+    <div class="delta-title">✅ Co zostało naprawione w 3 commitach</div>
+    <div class="delta-list">
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>LLM stuby</strong> — callOpenAI() i callAnthropic() używają teraz prawdziwych SDK (openai ^6.32, @anthropic-ai/sdk ^0.80)</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Szyfrowanie API keys</strong> — AES-256-GCM (utils/encryption.js), encrypt przy zapisie, decrypt przy wywołaniu LLM</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Auth middleware</strong> — X-API-Key header wymagan na wszystkich endpointach (poza /health i test env)</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Helmet</strong> — security headers (HSTS, X-Frame-Options, X-Content-Type-Options itd.) dodane przez helmet ^8.1</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Zod walidacja</strong> — agentSchema i taskSchema z safeParse() na POST /agents i POST /tasks</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>vm.Script zastąpiony mathjs</strong> — evaluate() z mathjs zamiast niebezpiecznego Node.js vm sandbox</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Stub endpointy uzupełnione</strong> — budget, active, parent_id agenta; done, priority, archive/unarchive tasków; tools CRUD — wszystko zapisuje do bazy</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Limit delegacji</strong> — MAX_DEPTH = 5 zarówno dla @mentions jak i FEEDBACK loop; kolumna depth w tabeli tasks</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Masking API keys w GET /agents</strong> — api_key zwracane jako '***' zamiast zaszyfrowanego tekstu</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>Accessibility</strong> — htmlFor + id na wszystkich label/input w AddAgentModal, ApiKeysPanel, TaskList</span></div>
+      <div class="delta-row"><span class="delta-tag dt-fix">DONE</span><span class="delta-text"><strong>DELETE /agents/:id</strong> — kaskadowo usuwa tasks i agent_tools danego agenta</span></div>
+      <div class="delta-row"><span class="delta-tag dt-partial">PARTIAL</span><span class="delta-text"><strong>CORS</strong> — dodane metody i allowedHeaders, ale <code>origin: true</code> nadal zezwala na wszystkie originy</span></div>
+    </div>
+  </div>
+
+  <!-- Score cards z porównaniem -->
+  <div class="score-compare">
+    <div class="score-card green">
+      <div class="score-label">Testy</div>
+      <div class="score-row"><span class="score-old">9</span><span class="score-new green">9</span></div>
+      <div class="score-delta sd-same">bez zmian</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="score-label">Architektura</div>
+      <div class="score-row"><span class="score-old">7</span><span class="score-new green">8</span></div>
+      <div class="score-delta sd-up">▲ +1</div>
+    </div>
+    <div class="score-card green">
+      <div class="score-label">Bezpieczeństwo</div>
+      <div class="score-row"><span class="score-old">5</span><span class="score-new green">7</span></div>
+      <div class="score-delta sd-up">▲ +2</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="score-label">Prod-Readiness</div>
+      <div class="score-row"><span class="score-old">4</span><span class="score-new yellow">6</span></div>
+      <div class="score-delta sd-up">▲ +2</div>
+    </div>
+    <div class="score-card blue">
+      <div class="score-label">DX / DevOps</div>
+      <div class="score-row"><span class="score-old">8</span><span class="score-new blue">8</span></div>
+      <div class="score-delta sd-same">bez zmian</div>
+    </div>
+  </div>
+
+  <!-- Verdict -->
+  <div class="verdict">
+    <div class="verdict-icon">🚀</div>
+    <div>
+      <div class="verdict-title">Ocena po poprawkach: Solidna Beta — gotowa do wewnętrznego deploymentu</div>
+      <div class="verdict-text">
+        Trzy commity rozwiązały 4 z 5 krytycznych issues z poprzedniego audytu. System agentowy jest teraz funkcjonalny end-to-end dla wszystkich trzech providerów LLM.
+        API keys są szyfrowane AES-256-GCM, auth middleware blokuje nieautoryzowany dostęp, helm chroni nagłówki, mathjs zastępuje ryzykowny vm sandbox, 
+        a limit głębokości delegacji eliminuje ryzyko nieskończonych pętli. To naprawdę duży skok jakościowy w jednym sprincie.
+        Pozostają 3 istotne kwestie: klucz szyfrowania <code>ENCRYPTION_KEY</code> ma fallback na hardcoded string, CORS nadal zezwala na wszystkie originy (<code>origin: true</code>),
+        a CI pipeline nadal nie uruchamia testów. Przed zewnętrznym deployment — konieczne.
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CO NAPRAWIONO ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-green">✅</div>
+      <h2>Naprawione krytyczne issues</h2>
+      <span class="section-score ss-green">4/5 kryt. → zamknięte</span>
+    </div>
+    <div class="findings">
+      <div class="finding resolved">
+        <div class="finding-title"><span class="badge badge-resolved">✓ ROZWIĄZANE</span> LLM stuby — OpenAI i Anthropic używają prawdziwych SDK</div>
+        <div class="finding-desc">
+          Zainstalowano <code>openai ^6.32.0</code> i <code>@anthropic-ai/sdk ^0.80.0</code>. Obie funkcje teraz tworzą klienta, wysyłają prompt z rolą agenta i zwracają rzeczywistą odpowiedź. Koszt nadal hardcoded $0.01 (patrz: otwarte issues).
+        </div>
+      </div>
+      <div class="finding resolved">
+        <div class="finding-title"><span class="badge badge-resolved">✓ ROZWIĄZANE</span> Szyfrowanie API keys — AES-256-GCM</div>
+        <div class="finding-desc">
+          Nowy plik <code>utils/encryption.js</code> z <code>encrypt()</code> i <code>decrypt()</code>. Klucz szyfrowany przed zapisem do bazy, odszyfrowany przy wywołaniu LLM. Format: <code>iv:authTag:encrypted</code>. Implementacja poprawna — GCM z losowym IV i auth tag.
+        </div>
+      </div>
+      <div class="finding resolved">
+        <div class="finding-title"><span class="badge badge-resolved">✓ ROZWIĄZANE</span> Auth middleware — X-API-Key na wszystkich endpointach</div>
+        <div class="finding-desc">
+          Middleware sprawdza header <code>X-API-Key</code> na każdym żądaniu. Pomija <code>/api/health</code> i środowisko <code>test</code>. Frontend w <code>main.jsx</code> dodaje nagłówek automatycznie przez fetch interceptor.
+        </div>
+      </div>
+      <div class="finding resolved">
+        <div class="finding-title"><span class="badge badge-resolved">✓ ROZWIĄZANE</span> vm.Script → mathjs.evaluate()</div>
+        <div class="finding-desc">
+          Narzędzie <code>calculate</code> w <code>tools.js</code> używa teraz <code>evaluate()</code> z mathjs — bezpieczny parser matematyczny bez możliwości ucieczki z sandboxa. Poprawna naprawa.
+        </div>
+      </div>
+      <div class="finding resolved">
+        <div class="finding-title"><span class="badge badge-resolved">✓ ROZWIĄZANE</span> Stub endpointy API — 10+ uzupełnionych implementacji</div>
+        <div class="finding-desc">
+          Uzupełnione: <code>PATCH /agents/:id/budget</code>, <code>PATCH /agents/:id/active</code>, <code>PATCH /agents/:id/parent</code>, <code>GET|POST|DELETE /agents/:id/tools</code>, <code>PATCH /tasks/:id/done</code>, <code>PATCH /tasks/:id/priority</code>, <code>PATCH /tasks/:id/archive</code>, <code>PATCH /tasks/:id/unarchive</code>, <code>DELETE /agents/:id</code> (z kaskadą). Wszystkie zapisują do bazy.
+        </div>
+      </div>
+      <div class="finding resolved">
+        <div class="finding-title"><span class="badge badge-resolved">✓ ROZWIĄZANE</span> MAX_DEPTH = 5 dla delegacji i FEEDBACK loop</div>
+        <div class="finding-desc">
+          Kolumna <code>depth INTEGER DEFAULT 0</code> w tabeli tasks. Heartbeat przekazuje i inkrementuje głębokość przy każdej delegacji i pętli feedbacku. Zapobiega runaway costs.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== POZOSTAŁE ISSUES ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-red">⚠️</div>
+      <h2>Pozostałe otwarte issues</h2>
+      <span class="section-score ss-orange">3 istotne · 5 drobnych</span>
+    </div>
+    <div class="findings">
+
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Istotny</span> ENCRYPTION_KEY ma fallback na hardcoded string</div>
+        <div class="finding-desc">
+          W <code>utils/encryption.js</code>:
+          <div class="code-block"><span class="code-red">const KEY = process.env.ENCRYPTION_KEY || 'default-long-secret-key-32-chars-!!';</span>
+
+<span class="code-comment">// Jeśli ENCRYPTION_KEY nie jest ustawiony w .env,
+// wszystkie klucze szyfrowane są TYM SAMYM kluczem publicznym.
+// Osoba znająca kod może deszyfrować bazę danych każdego deploymentu.</span>
+
+<span class="code-green">// Fix: rzuć wyjątek jeśli klucz nie istnieje:
+if (!process.env.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY env var required');
+const KEY = process.env.ENCRYPTION_KEY.slice(0, 32).padEnd(32);</span></div>
+        </div>
+      </div>
+
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Istotny</span> CORS origin: true — nadal zezwala na wszystkie domeny</div>
+        <div class="finding-desc">
+          Poprzednie <code>app.use(cors())</code> zastąpione przez <code>cors({ origin: true, ... })</code>, co jest funkcjonalnie identyczne — każda domena ma dostęp. Komentarz w kodzie: <em>"Allow all origins for now to fix 'Failed to fetch'"</em>. 
+          Właściwy fix: <code>origin: process.env.FRONTEND_URL || 'http://localhost:5173'</code>.
+        </div>
+      </div>
+
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Istotny</span> CI pipeline nadal nie uruchamia testów</div>
+        <div class="finding-desc">
+          Workflow <code>docker-build.yml</code> bez zmian — tylko <code>docker compose build</code>. Przy 39 plikach testów, brak ich uruchomienia w CI to zmarnowany potencjał i ryzyko regresji.
+          <div class="code-block"><span class="code-comment"># Dodać do docker-build.yml:</span>
+<span class="code-green">    - name: Run backend tests
+      run: docker compose run --rm backend npm test
+    - name: Run frontend tests
+      run: docker compose run --rm frontend npm test</span></div>
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Auth middleware używa domyślnego klucza 'biuro-secret-key'</div>
+        <div class="finding-desc">
+          <code>const expectedKey = process.env.APP_API_KEY || 'biuro-secret-key'</code> — analogicznie do ENCRYPTION_KEY, jeśli env nie jest ustawiony, klucz auth jest publicznie znany z kodu źródłowego. Ten sam problem co z kluczem szyfrowania.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Koszt LLM nadal hardcoded $0.01 dla OpenAI i Anthropic</div>
+        <div class="finding-desc">
+          Nowe implementacje callOpenAI() i callAnthropic() zwracają <code>calcCost = 0.01</code> niezależnie od liczby tokenów i modelu. GPT-4o kosztuje inaczej niż GPT-3.5. Budget tracking w bazie jest fałszywy.
+          Anthropic API zwraca <code>response.usage</code> z input/output tokens, OpenAI podobnie — warto to wykorzystać.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> CSP wyłączone: <code>contentSecurityPolicy: false</code></div>
+        <div class="finding-desc">
+          Helmet dodany — świetnie. Ale Content Security Policy wyłączone: <code>helmet({ contentSecurityPolicy: false })</code>. CSP to kluczowa ochrona przed XSS, szczególnie ważna bo API keys są w localStorage frontendowym. Warto skonfigurować minimalne CSP zamiast wyłączać całkowicie.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> PATCH /tasks/:id/schedule nadal stub</div>
+        <div class="finding-desc">
+          Planowanie zadań (<code>scheduled_for</code>) nadal zwraca tylko <code>{ success: true }</code> bez zapisu. Kolumna istnieje w schemacie, heartbeat respektuje ją w zapytaniu — endpoint jest ostatnim brakującym ogniwem.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Fetch interceptor w main.jsx — ryzyko circular dependency przy testach</div>
+        <div class="finding-desc">
+          Nadpisanie <code>window.fetch</code> globalnie w <code>main.jsx</code> może powodować niespodziewane zachowanie w testach Vitest (jsdom environment). Lepszym wzorcem jest axios z interceptorem lub dedykowany moduł api.js z wstrzyknięciem nagłówka.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Brak walidacji Zod na pozostałych endpointach</div>
+        <div class="finding-desc">
+          Zod dodany tylko dla POST /agents i POST /tasks. Endpointy PATCH (np. <code>/agents/:id/budget</code> przyjmuje <code>req.body.budget</code> bez walidacji czy to liczba) mogą dostać NaN lub string i zapisać do bazy bez błędu.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Template apply nadal hardkoduje companyId = 1</div>
+        <div class="finding-desc">
+          Niezmienione od poprzedniego audytu: <code>const companyId = 1; // Default</code>. Przy multi-company usage szablon zawsze nadpisuje dane pierwszej firmy, ignorując CompanySelector.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NOWE DOBRE RZECZY ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-blue">💡</div>
+      <h2>Nowe dobre wzorce wprowadzone w tym sprincie</h2>
+    </div>
+    <div class="findings">
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓</span> AES-256-GCM z losowym IV i auth tag — poprawna kryptografia</div>
+        <div class="finding-desc">
+          Implementacja w <code>encryption.js</code> jest poprawna: 12-bajtowy losowy IV, auth tag weryfikowany przy dekrypcji, obsługa błędów dekrypcji. Jedyna luka to fallback klucza (patrz: otwarte issues).
+        </div>
+      </div>
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓</span> GET /agents maskuje api_key jako '***'</div>
+        <div class="finding-desc">
+          <code>agents.map(a => ({ ...a, api_key: a.api_key ? '***' : null }))</code> — klucze nigdy nie wychodzą przez API, nawet zaszyfrowane. Dobra praktyka defensywna.
+        </div>
+      </div>
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓</span> Fetch interceptor — transparentne dodawanie auth header do wszystkich requestów</div>
+        <div class="finding-desc">
+          Eleganckie rozwiązanie — cały frontend działa bez zmian, a każde żądanie automatycznie dostaje <code>X-API-Key</code>. Wzorzec znany z axios interceptors.
+        </div>
+      </div>
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓</span> Accessibility: label + htmlFor + id na wszystkich polach formularzy</div>
+        <div class="finding-desc">
+          AddAgentModal, ApiKeysPanel, TaskList — wszystkie pola mają poprawnie powiązane etykiety. Dobra praktyka WCAG, ważna też dla automatycznych testów accessibility.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROADMAP ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-orange">🎯</div>
+      <h2>Pozostały plan działań</h2>
+    </div>
+    <div class="action-list">
+
+      <div class="action-item done">
+        <div class="action-prio pdone">✓</div>
+        <div class="action-content">
+          <div class="action-title">Zaimplementuj prawdziwe callOpenAI() i callAnthropic()</div>
+          <div class="action-desc">DONE — SDK zainstalowane i używane.</div>
+        </div>
+      </div>
+      <div class="action-item done">
+        <div class="action-prio pdone">✓</div>
+        <div class="action-content">
+          <div class="action-title">Zaszyfruj API keys (AES-256-GCM)</div>
+          <div class="action-desc">DONE — encryption.js z poprawną implementacją.</div>
+        </div>
+      </div>
+      <div class="action-item done">
+        <div class="action-prio pdone">✓</div>
+        <div class="action-content">
+          <div class="action-title">Auth middleware + Helmet</div>
+          <div class="action-desc">DONE — X-API-Key wymagany, security headers aktywne.</div>
+        </div>
+      </div>
+
+      <div class="action-item">
+        <div class="action-prio p1">P1</div>
+        <div class="action-content">
+          <div class="action-title">Rzuć Error jeśli ENCRYPTION_KEY lub APP_API_KEY nie ustawione w env</div>
+          <div class="action-desc">Usuń fallback na hardcoded string. Aplikacja powinna nie startować bez tych zmiennych w prod.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p1">P1</div>
+        <div class="action-content">
+          <div class="action-title">Ustaw CORS origin na konkretną domenę</div>
+          <div class="action-desc"><code>origin: process.env.FRONTEND_URL</code> — jedna linia, duże bezpieczeństwo.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p2">P2</div>
+        <div class="action-content">
+          <div class="action-title">Dodaj testy do CI pipeline</div>
+          <div class="action-desc">2 kroki w docker-build.yml: backend npm test + frontend npm test. 39 testów czeka na uruchomienie w CI.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p2">P2</div>
+        <div class="action-content">
+          <div class="action-title">Rzeczywiste kalkulacje kosztu tokenów</div>
+          <div class="action-desc">OpenAI i Anthropic zwracają usage.input_tokens / usage.output_tokens. Użyj cen per 1M tokenów zamiast flat $0.01.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p3">P3</div>
+        <div class="action-content">
+          <div class="action-title">Skonfiguruj CSP zamiast wyłączać całkowicie</div>
+          <div class="action-desc">Minimalne: <code>default-src 'self'; connect-src 'self' https://api.openai.com https://api.anthropic.com</code>.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p3">P3</div>
+        <div class="action-content">
+          <div class="action-title">Napraw template apply (companyId = 1 hardcoded)</div>
+          <div class="action-desc">Użyj company_id z body requestu lub z parametru URL. Jeden wiersz.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p4">P4</div>
+        <div class="action-content">
+          <div class="action-title">Rozszerz walidację Zod na endpointy PATCH</div>
+          <div class="action-desc">Szczególnie: PATCH budget (czy liczba >= 0?), PATCH priority (czy int?), PATCH active (czy boolean?).</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p4">P4</div>
+        <div class="action-content">
+          <div class="action-title">Zastąp Vite preview Nginx w prod</div>
+          <div class="action-desc">Pozostałe z poprzedniego audytu — nadal dotyczy docker-compose.prod.yml.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary table -->
+  <hr class="sep">
+  <h2 style="margin-bottom:16px; color:#fff">Podsumowanie — przed i po</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Wymiar</th>
+        <th>Poprzednio</th>
+        <th>Teraz</th>
+        <th>Zmiana</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Implementacja LLM</td>
+        <td><span style="color:var(--red)">4/10 — stuby</span></td>
+        <td><span style="color:var(--green)">8/10 — SDK</span></td>
+        <td><span style="color:var(--green)">▲ +4</span></td>
+      </tr>
+      <tr>
+        <td>Bezpieczeństwo</td>
+        <td><span style="color:var(--orange)">5/10</span></td>
+        <td><span style="color:var(--yellow)">7/10</span></td>
+        <td><span style="color:var(--green)">▲ +2</span></td>
+      </tr>
+      <tr>
+        <td>API kompletność</td>
+        <td><span style="color:var(--red)">4/10 — no-opy</span></td>
+        <td><span style="color:var(--yellow)">7/10</span></td>
+        <td><span style="color:var(--green)">▲ +3</span></td>
+      </tr>
+      <tr>
+        <td>Architektura / wzorce</td>
+        <td><span style="color:var(--yellow)">7/10</span></td>
+        <td><span style="color:var(--green)">8/10</span></td>
+        <td><span style="color:var(--green)">▲ +1</span></td>
+      </tr>
+      <tr>
+        <td>Gotowość produkcyjna</td>
+        <td><span style="color:var(--red)">4/10</span></td>
+        <td><span style="color:var(--yellow)">6/10</span></td>
+        <td><span style="color:var(--green)">▲ +2</span></td>
+      </tr>
+      <tr>
+        <td>Pokrycie testami</td>
+        <td><span style="color:var(--green)">9/10</span></td>
+        <td><span style="color:var(--green)">9/10</span></td>
+        <td><span style="color:var(--muted)">= bez zmian</span></td>
+      </tr>
+      <tr>
+        <td>DevOps / Docker</td>
+        <td><span style="color:var(--accent)">8/10</span></td>
+        <td><span style="color:var(--accent)">8/10</span></td>
+        <td><span style="color:var(--muted)">= bez zmian</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="summary-bar">
+    <div>
+      <div class="sum-item-label">Zamkniętych issues</div>
+      <div class="sum-item-val" style="color:var(--green)">11</div>
+    </div>
+    <div class="sum-divider">
+      <div class="sum-item-label">Pozostałych issues</div>
+      <div class="sum-item-val" style="color:var(--yellow)">8</div>
+    </div>
+    <div class="sum-divider">
+      <div class="sum-item-label">Krytycznych P1</div>
+      <div class="sum-item-val" style="color:var(--orange)">2</div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:32px; font-family:var(--mono); font-size:11px; color:var(--muted)">
+    Audyt v2 · smietas123PL/biuro-v3 · HEAD 54fc1f3 · 23.03.2026
+  </div>
+
+</div>
+</body>
+</html>

@@ -66,12 +66,15 @@ async function callOpenAI(agent, task, tools) {
       { role: 'system', content: `Jesteś autonomicznym agentem. Twoja rola: ${agent.role}` },
       { role: 'user', content: task.description }
     ],
-    // Simplification for demo: tool calls would be handled here
   });
 
-  // Calculate cost (very simplified: $0.01 per call)
-  const calcCost = 0.01; 
-  return { text: response.choices[0].message.content, calcCost };
+  const { prompt_tokens, completion_tokens } = response.usage;
+  // Prices per 1M tokens (approximate for GPT-4o-mini / GPT-4o)
+  const priceInput = agent.model.includes('gpt-4o-mini') ? 0.15 : 5.00;
+  const priceOutput = agent.model.includes('gpt-4o-mini') ? 0.60 : 15.00;
+  const calcCost = (prompt_tokens * priceInput + completion_tokens * priceOutput) / 1_000_000;
+
+  return { text: response.choices[0].message.content, cost: calcCost || 0.01 };
 }
 
 async function callAnthropic(agent, task, tools) {
@@ -86,8 +89,11 @@ async function callAnthropic(agent, task, tools) {
     messages: [{ role: 'user', content: task.description }]
   });
 
-  const calcCost = 0.01;
-  return { text: response.content[0].text, calcCost };
+  const { input_tokens, output_tokens } = response.usage;
+  // Claude 3.5 Sonnet prices
+  const calcCost = (input_tokens * 3.00 + output_tokens * 15.00) / 1_000_000;
+
+  return { text: response.content[0].text, cost: calcCost || 0.01 };
 }
 
 async function callGemini(agent, task, tools) {
