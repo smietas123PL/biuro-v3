@@ -22,6 +22,23 @@ const taskSchema = z.object({
   priority: z.number().int().min(0).optional().default(0)
 });
 
+const companySchema = z.object({
+  name: z.string().min(2),
+  mission: z.string().optional().nullable()
+});
+
+const goalSchema = z.object({
+  company_id: z.number().int().positive(),
+  title: z.string().min(3),
+  description: z.string().optional().nullable()
+});
+
+const toolSchema = z.object({
+  name: z.string().min(2),
+  limit_per_hour: z.number().int().min(0).optional(),
+  schema: z.string().optional().nullable()
+});
+
 const patchAgentSchema = z.object({
   budget: z.number().min(0).optional(),
   active: z.union([z.boolean(), z.number().int().min(0).max(1)]).optional(),
@@ -40,11 +57,27 @@ router.get('/audit', (req, res) => res.json(db.prepare('SELECT * FROM audit_log 
 // Companies
 router.get('/companies', (req, res) => res.json(db.prepare('SELECT * FROM companies').all()));
 router.post('/companies', (req, res) => {
-  const info = db.prepare('INSERT INTO companies (name, mission) VALUES (?, ?)').run(req.body.name, req.body.mission);
+  const result = companySchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { name, mission } = result.data;
+  const info = db.prepare('INSERT INTO companies (name, mission) VALUES (?, ?)').run(name, mission);
   res.json({ id: info.lastInsertRowid });
 });
-router.patch('/companies/:id', (req, res) => res.json({ success: true }));
-router.delete('/companies/:id', (req, res) => res.json({ success: true }));
+router.patch('/companies/:id', (req, res) => {
+  const result = companySchema.partial().safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  
+  const fields = Object.keys(result.data).map(k => `${k} = ?`).join(', ');
+  const values = Object.values(result.data);
+  if (fields) {
+    db.prepare(`UPDATE companies SET ${fields} WHERE id = ?`).run(...values, req.params.id);
+  }
+  res.json({ success: true });
+});
+router.delete('/companies/:id', (req, res) => {
+  db.prepare('DELETE FROM companies WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
 router.get('/companies/:id/costs', (req, res) => res.json([]));
 router.get('/companies/:id/budget_alerts', (req, res) => res.json([]));
 router.patch('/companies/:id/budget-limit', (req, res) => res.json({ success: true }));
@@ -215,15 +248,26 @@ router.post('/agents/:id/ab-tests', (req, res) => res.json({ success: true }));
 // Goals
 router.get('/goals', (req, res) => res.json(db.prepare('SELECT * FROM goals').all()));
 router.post('/goals', (req, res) => {
-  const { company_id, title, description } = req.body;
+  const result = goalSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { company_id, title, description } = result.data;
   const info = db.prepare('INSERT INTO goals (company_id, title, description) VALUES (?, ?, ?)').run(company_id, title, description);
   res.json({ id: info.lastInsertRowid });
 });
-router.delete('/goals/:id', (req, res) => res.json({ success: true }));
+router.delete('/goals/:id', (req, res) => {
+  db.prepare('DELETE FROM goals WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
 
 // Tools
 router.get('/tools', (req, res) => res.json(db.prepare('SELECT * FROM tools').all()));
-router.post('/tools', (req, res) => res.json({ success: true }));
+router.post('/tools', (req, res) => {
+  const result = toolSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  const { name, limit_per_hour, schema } = result.data;
+  const info = db.prepare('INSERT INTO tools (name, limit_per_hour, schema) VALUES (?, ?, ?)').run(name, limit_per_hour || 0, schema || null);
+  res.json({ id: info.lastInsertRowid });
+});
 
 // Tasks
 router.get('/tasks/:agent_id', (req, res) => res.json(db.prepare('SELECT * FROM tasks WHERE agent_id = ? ORDER BY created_at DESC').all(req.params.agent_id)));
