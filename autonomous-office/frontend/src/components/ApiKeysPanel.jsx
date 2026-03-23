@@ -47,8 +47,9 @@ export default function ApiKeysPanel() {
       </p>
 
       <div>
-        <label style={{ display: 'block', marginBottom: 'var(--space-2)' }}>OpenAI API Key (gpt-*)</label>
+        <label htmlFor="openai-key" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>OpenAI API Key (gpt-*)</label>
         <input 
+          id="openai-key"
           type="password" 
           name="openai" 
           value={keys.openai} 
@@ -59,8 +60,9 @@ export default function ApiKeysPanel() {
       </div>
 
       <div>
-        <label style={{ display: 'block', marginBottom: 'var(--space-2)' }}>Anthropic API Key (claude-*)</label>
+        <label htmlFor="anthropic-key" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>Anthropic API Key (claude-*)</label>
         <input 
+          id="anthropic-key"
           type="password" 
           name="anthropic" 
           value={keys.anthropic} 
@@ -71,8 +73,9 @@ export default function ApiKeysPanel() {
       </div>
 
       <div>
-        <label style={{ display: 'block', marginBottom: 'var(--space-2)' }}>Google API Key (gemini-*)</label>
+        <label htmlFor="google-key" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>Google API Key (gemini-*)</label>
         <input 
+          id="google-key"
           type="password" 
           name="google" 
           value={keys.google} 

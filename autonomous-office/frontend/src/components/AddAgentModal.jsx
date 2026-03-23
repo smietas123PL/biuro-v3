@@ -40,22 +40,22 @@ export default function AddAgentModal({ onClose, onAdded }) {
         <h2>Add New Agent</h2>
         
         <form onSubmit={handleSubmit}>
-          <label style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Agent Name</label>
-          <input style={inputStyle} required placeholder="np. Asystent HR" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+          <label htmlFor="agent-name" style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Agent Name</label>
+          <input id="agent-name" name="agent-name" style={inputStyle} required placeholder="np. Asystent HR" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
 
-          <label style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Role / Prompt</label>
-          <input style={inputStyle} required placeholder="np. Jesteś ekspertem HR..." value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
+          <label htmlFor="agent-role" style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Role / Prompt</label>
+          <input id="agent-role" name="agent-role" style={inputStyle} required placeholder="np. Jesteś ekspertem HR..." value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} />
 
-          <label style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Model</label>
-          <select style={inputStyle} value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})}>
+          <label htmlFor="agent-model" style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Model</label>
+          <select id="agent-model" name="agent-model" style={inputStyle} value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})}>
             <option value="gpt-3.5-turbo">OpenAI GPT-3.5</option>
             <option value="gpt-4o">OpenAI GPT-4o</option>
             <option value="claude-3-opus">Anthropic Claude 3 Opus</option>
             <option value="gemini-1.5-pro">Google Gemini 1.5</option>
           </select>
 
-          <label style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Budget Limit ($)</label>
-          <input style={inputStyle} type="number" step="0.01" value={formData.initial_budget} onChange={e => setFormData({...formData, initial_budget: parseFloat(e.target.value)})} />
+          <label htmlFor="agent-budget" style={{ display: 'block', marginBottom: 'var(--space-1)' }}>Budget Limit ($)</label>
+          <input id="agent-budget" name="agent-budget" style={inputStyle} type="number" step="0.01" value={formData.initial_budget} onChange={e => setFormData({...formData, initial_budget: parseFloat(e.target.value)})} />
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
             <Button variant="secondary" onClick={onClose} type="button">Cancel</Button>

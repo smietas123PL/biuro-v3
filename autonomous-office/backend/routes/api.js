@@ -140,6 +140,11 @@ router.patch('/agents/:id/budget', (req, res) => {
   db.prepare('UPDATE agents SET budget = ?, initial_budget = ? WHERE id = ?').run(budget, budget, req.params.id);
   res.json({ success: true });
 });
+router.post('/agents/:id/budget', (req, res) => {
+  const { budget } = req.body;
+  db.prepare('UPDATE agents SET budget = ?, initial_budget = ? WHERE id = ?').run(budget, budget, req.params.id);
+  res.json({ success: true });
+});
 router.patch('/agents/:id/active', (req, res) => {
   const { active } = req.body;
   db.prepare('UPDATE agents SET active = ? WHERE id = ?').run(active ? 1 : 0, req.params.id);

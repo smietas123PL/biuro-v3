@@ -57,7 +57,10 @@ export default function TaskList({ agentId }) {
       </div>
 
       <form onSubmit={handleAddTask} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <label htmlFor="task-desc" className="sr-only">Opis zadania</label>
         <input 
+          id="task-desc"
+          name="task-desc"
           type="text" 
           value={newTaskDesc}
           onChange={(e) => setNewTaskDesc(e.target.value)}
