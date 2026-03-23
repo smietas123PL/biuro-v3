@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import Card from './ui/Card';
 import Button from './ui/Button';
+import { useStore } from '../store';
 
 export default function TemplateLoader() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(false);
+  const companyId = useStore(state => state.companyId);
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL}/api/templates`)
@@ -21,7 +23,7 @@ export default function TemplateLoader() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ company_id: 1 })
+        body: JSON.stringify({ company_id: companyId })
       });
       
       if (!response.ok) {

@@ -22,6 +22,13 @@ export async function processAgents() {
         `).get(agent.id);
         
         if (task) {
+          // 5. PRE-LLM check (Security & Budget)
+          if (agent.budget <= 0 && agent.initial_budget > 0) {
+            console.log(`Agent ${agent.name} skipped: budget empty.`);
+            db.prepare('UPDATE agents SET active = 0 WHERE id = ?').run(agent.id);
+            continue;
+          }
+
           // 12. Update agent status
           db.prepare('UPDATE agents SET status = \'working\', last_heartbeat = datetime(\'now\') WHERE id = ?').run(agent.id);
           

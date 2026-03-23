@@ -4,8 +4,8 @@ import { useStore } from './store';
 describe('useStore', () => {
   beforeEach(() => {
     // Reset store state if needed, though Zustand persists in memory for vitest
-    // We can also clear localStorage as it is used by store.js
-    localStorage.clear();
+    // We can also clear sessionStorage as it is used by store.js
+    sessionStorage.clear();
   });
 
   it('initializes with default values', () => {
@@ -20,12 +20,12 @@ describe('useStore', () => {
     expect(useStore.getState().companyId).toBe(5);
   });
 
-  it('updates apiKeys via setApiKeys and persists to localStorage', () => {
+  it('updates apiKeys via setApiKeys and persists to sessionStorage', () => {
     const { setApiKeys } = useStore.getState();
     const newKeys = { openai: 'sk-test', anthropic: 'at-test', google: 'g-test' };
     setApiKeys(newKeys);
     
     expect(useStore.getState().apiKeys.openai).toBe('sk-test');
-    expect(JSON.parse(localStorage.getItem('apiKeys')).openai).toBe('sk-test');
+    expect(JSON.parse(sessionStorage.getItem('apiKeys')).openai).toBe('sk-test');
   });
 });

@@ -20,15 +20,14 @@ services:
     build:
       context: ./frontend
       dockerfile: ../Dockerfile.frontend
-      target: base
+      target: prod
     ports:
-      - "3005:5173"
+      - "3005:80"
     env_file:
       - .env
     environment:
       NODE_ENV: production
     restart: unless-stopped
-    command: sh -c "npm run build && npm run preview -- --host 0.0.0.0 --port 5173"
 
 volumes:
   sqlite-data-prod:
