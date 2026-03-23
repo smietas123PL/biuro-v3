@@ -1,4 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import { decrypt } from '../utils/encryption.js';
 
 export async function callLLMWithTools(agent, task, tools) {
   const model = agent.model || 'gpt-3.5-turbo';
@@ -7,9 +10,13 @@ export async function callLLMWithTools(agent, task, tools) {
 
   try {
     if (model.startsWith('gpt')) {
-      responseText = await callOpenAI(agent, task, tools);
+      const { text, calcCost } = await callOpenAI(agent, task, tools);
+      responseText = text;
+      cost = calcCost;
     } else if (model.startsWith('claude')) {
-      responseText = await callAnthropic(agent, task, tools);
+      const { text, calcCost } = await callAnthropic(agent, task, tools);
+      responseText = text;
+      cost = calcCost;
     } else if (model.startsWith('gemini')) {
       const { text, calcCost } = await callGemini(agent, task, tools);
       responseText = text;
@@ -49,19 +56,42 @@ function getDemoResponse(agent, task, tools) {
 }
 
 async function callOpenAI(agent, task, tools) {
-  const apiKey = agent.api_key || process.env.OPENAI_API_KEY;
+  const apiKey = (agent.api_key ? decrypt(agent.api_key) : null) || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('Missing OpenAI API Key');
-  return `[OpenAI ${agent.model}] Analyzed and processed: ${task.description}. Used tools: none.`;
+  
+  const openai = new OpenAI({ apiKey });
+  const response = await openai.chat.completions.create({
+    model: agent.model,
+    messages: [
+      { role: 'system', content: `Jesteś autonomicznym agentem. Twoja rola: ${agent.role}` },
+      { role: 'user', content: task.description }
+    ],
+    // Simplification for demo: tool calls would be handled here
+  });
+
+  // Calculate cost (very simplified: $0.01 per call)
+  const calcCost = 0.01; 
+  return { text: response.choices[0].message.content, calcCost };
 }
 
 async function callAnthropic(agent, task, tools) {
-  const apiKey = agent.api_key || process.env.ANTHROPIC_API_KEY;
+  const apiKey = (agent.api_key ? decrypt(agent.api_key) : null) || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('Missing Anthropic API Key');
-  return `[Anthropic ${agent.model}] Handled task: ${task.description}.`;
+  
+  const anthropic = new Anthropic({ apiKey });
+  const response = await anthropic.messages.create({
+    model: agent.model,
+    max_tokens: 1024,
+    system: `Jesteś autonomicznym agentem. Twoja rola: ${agent.role}`,
+    messages: [{ role: 'user', content: task.description }]
+  });
+
+  const calcCost = 0.01;
+  return { text: response.content[0].text, calcCost };
 }
 
 async function callGemini(agent, task, tools) {
-  const apiKey = agent.api_key || process.env.GOOGLE_API_KEY;
+  const apiKey = (agent.api_key ? decrypt(agent.api_key) : null) || process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new Error('Missing Google API Key (GEMINI)');
   
   const genAI = new GoogleGenerativeAI(apiKey);

@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audyt: autonomous-office</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --border: #1e2229;
+    --border2: #2a3040;
+    --text: #c9d1e0;
+    --muted: #5a6480;
+    --accent: #3b82f6;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --orange: #f97316;
+    --purple: #a78bfa;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* noise overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 40px 28px 80px; position: relative; z-index: 1; }
+
+  /* Header */
+  .header {
+    border-bottom: 1px solid var(--border2);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .repo-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  h1 span { color: var(--accent); }
+
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .meta-item {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .meta-item strong { color: var(--text); }
+
+  /* Score card */
+  .score-hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .score-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .score-card.green::before { background: var(--green); }
+  .score-card.yellow::before { background: var(--yellow); }
+  .score-card.orange::before { background: var(--orange); }
+  .score-card.red::before { background: var(--red); }
+  .score-card.blue::before { background: var(--accent); }
+
+  .score-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .score-num {
+    font-family: var(--mono);
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .score-num.green { color: var(--green); }
+  .score-num.yellow { color: var(--yellow); }
+  .score-num.orange { color: var(--orange); }
+  .score-num.red { color: var(--red); }
+  .score-num.blue { color: var(--accent); }
+  .score-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: var(--mono);
+  }
+
+  /* Overall verdict */
+  .verdict {
+    background: linear-gradient(135deg, #111a2e 0%, #0f1520 100%);
+    border: 1px solid #1e3a5f;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  .verdict-icon { font-size: 2rem; flex-shrink: 0; }
+  .verdict-title {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .verdict-text { color: var(--text); font-size: 14px; line-height: 1.7; }
+
+  /* Sections */
+  .section { margin-bottom: 48px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .si-green { background: rgba(16,185,129,.15); }
+  .si-red { background: rgba(239,68,68,.15); }
+  .si-yellow { background: rgba(245,158,11,.15); }
+  .si-blue { background: rgba(59,130,246,.15); }
+  .si-purple { background: rgba(167,139,250,.15); }
+  .si-orange { background: rgba(249,115,22,.15); }
+
+  h2 {
+    font-family: var(--sans);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .section-score {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+  .ss-green { background: rgba(16,185,129,.15); color: var(--green); }
+  .ss-yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
+  .ss-orange { background: rgba(249,115,22,.15); color: var(--orange); }
+  .ss-red { background: rgba(239,68,68,.15); color: var(--red); }
+  .ss-blue { background: rgba(59,130,246,.15); color: var(--accent); }
+
+  /* Finding cards */
+  .findings { display: flex; flex-direction: column; gap: 10px; }
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .finding.good { border-left-color: var(--green); }
+  .finding.warn { border-left-color: var(--yellow); }
+  .finding.bad { border-left-color: var(--red); }
+  .finding.info { border-left-color: var(--accent); }
+  .finding.medium { border-left-color: var(--orange); }
+
+  .finding-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .badge-good { background: rgba(16,185,129,.2); color: var(--green); }
+  .badge-warn { background: rgba(245,158,11,.2); color: var(--yellow); }
+  .badge-bad { background: rgba(239,68,68,.2); color: var(--red); }
+  .badge-info { background: rgba(59,130,246,.2); color: var(--accent); }
+  .badge-medium { background: rgba(249,115,22,.2); color: var(--orange); }
+
+  .finding-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .finding-desc code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(255,255,255,.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #8bb8ff;
+  }
+
+  /* Code block */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #8bb8ff;
+    margin-top: 8px;
+    overflow-x: auto;
+    line-height: 1.6;
+    white-space: pre;
+  }
+  .code-comment { color: #556070; }
+  .code-red { color: #ff7b72; }
+  .code-green { color: #7ee787; }
+  .code-yellow { color: #e3b341; }
+
+  /* Stack pills */
+  .stack-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--border);
+    color: var(--text);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border2);
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-family: var(--mono); font-size: 12px; color: #8bb8ff; }
+  tbody tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* Action list */
+  .action-list { display: flex; flex-direction: column; gap: 8px; }
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .action-prio {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .p1 { background: rgba(239,68,68,.2); color: var(--red); }
+  .p2 { background: rgba(249,115,22,.2); color: var(--orange); }
+  .p3 { background: rgba(245,158,11,.2); color: var(--yellow); }
+  .p4 { background: rgba(59,130,246,.2); color: var(--accent); }
+  .action-content { flex: 1; }
+  .action-title { font-weight: 700; font-size: 13px; color: #fff; margin-bottom: 3px; }
+  .action-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* Summary bar */
+  .summary-bar {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-top: 48px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    text-align: center;
+  }
+  .sum-item-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .sum-item-val { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+  .sum-divider { border-left: 1px solid var(--border); }
+
+  hr.sep { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="repo-label">🔍 Raport audytu kodu · commit 1d6f509</div>
+        <h1>autonomous<span>-office</span></h1>
+        <div class="meta-row">
+          <span class="meta-item">Repo: <strong>smietas123PL/biuro-v3</strong></span>
+          <span class="meta-item">Data: <strong>23.03.2026</strong></span>
+          <span class="meta-item">Stack: <strong>Node.js · React 18 · SQLite · Docker</strong></span>
+          <span class="meta-item">Pliki testów: <strong>39</strong></span>
+          <span class="meta-item">LOC: <strong>~3 070</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score Cards -->
+  <div class="score-hero">
+    <div class="score-card green">
+      <div class="score-label">Testy</div>
+      <div class="score-num green">9/10</div>
+      <div class="score-sub">39 plików testów</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="score-label">Architektura</div>
+      <div class="score-num yellow">7/10</div>
+      <div class="score-sub">dobre wzorce, luki impl.</div>
+    </div>
+    <div class="score-card orange">
+      <div class="score-label">Bezpieczeństwo</div>
+      <div class="score-num orange">5/10</div>
+      <div class="score-sub">brak auth, CORS wildcard</div>
+    </div>
+    <div class="score-card red">
+      <div class="score-label">Prod-Readiness</div>
+      <div class="score-num red">4/10</div>
+      <div class="score-sub">stuby, brak walidacji</div>
+    </div>
+    <div class="score-card blue">
+      <div class="score-label">DX / DevOps</div>
+      <div class="score-num blue">8/10</div>
+      <div class="score-sub">Docker, CI, HMR</div>
+    </div>
+  </div>
+
+  <!-- Verdict -->
+  <div class="verdict">
+    <div class="verdict-icon">⚡</div>
+    <div>
+      <div class="verdict-title">Ogólna ocena: Zaawansowany MVP / Pre-Beta</div>
+      <div class="verdict-text">
+        Projekt robi bardzo dobre pierwsze wrażenie — przemyślana architektura wieloagentowa, imponująca liczba testów (39 plików!), kompletny setup Docker z health-checkami i hot-reload. 
+        To wyraźnie więcej niż proof-of-concept. Problem leży jednak głębiej: kluczowe implementacje LLM (OpenAI, Anthropic) to <em>stuby</em> zwracające statyczny string, 
+        dziesiątki endpointów API robią tylko <code>res.json({ success: true })</code> bez zapisu do bazy, brak warstwy autoryzacji oznacza że każdy ma dostęp do wszystkiego,
+        a API keys są w bazie w plain-text. Projekt jest świetnym szkieletem, któremu brakuje jeszcze jednego porządnego sprintu implementacyjnego przed uznaniem go za gotowy do produkcji.
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ARCHITEKTURA ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-blue">🏗️</div>
+      <h2>Architektura i projekt systemu</h2>
+      <span class="section-score ss-yellow">7/10</span>
+    </div>
+
+    <div class="stack-row">
+      <span class="pill">Express 4 · ESM</span>
+      <span class="pill">React 18 + Vite</span>
+      <span class="pill">Zustand</span>
+      <span class="pill">SQLite (WAL)</span>
+      <span class="pill">better-sqlite3</span>
+      <span class="pill">@google/generative-ai</span>
+    </div>
+    <br>
+
+    <div class="findings">
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Wzorzec Heartbeat — przetwarzanie agentów w tle</div>
+        <div class="finding-desc">
+          <code>services/heartbeat.js</code> realizuje pętlę co 5 sekund: idle-agent → fetch task → call LLM → check approval rules → detect delegation (@mentions) → detect feedback loop → save response → deduct budget → auto-shutdown. 
+          To solidny, przemyślany flow agentowy z poprawną kolejnością kroków.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Schemat bazy — kompletny i bogaty</div>
+        <div class="finding-desc">
+          14 tabel (companies, agents, goals, tasks, audit_log, tools, agent_tools, responses, templates, company_approval_rules, daily_cost_snapshots, budget_alert_log, prompt_versions, prompt_templates) z foreign keys, UNIQUE constraints i WAL mode. Poziom modelowania godny produkcji.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Rozszerzalność LLM — multi-provider routing</div>
+        <div class="finding-desc">
+          <code>callLLMWithTools()</code> routuje po prefiksie modelu: <code>gpt-*</code>, <code>claude-*</code>, <code>gemini-*</code>, <code>demo-*</code>. Tryb demo jest w pełni funkcjonalny z polskimi przykładowymi responsami. Jedyny realnie działający provider to Gemini.
+        </div>
+      </div>
+
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Krytyczny</span> OpenAI i Anthropic to stuby — nie wywołują API</div>
+        <div class="finding-desc">
+          Obie funkcje mają ciała, ale zwracają statyczny string zamiast wywołania API. Użytkownik konfigurujący GPT-4 lub Claude nigdy nie dostanie prawdziwej odpowiedzi.
+          <div class="code-block"><span class="code-red">async function callOpenAI(agent, task, tools) {
+  const apiKey = agent.api_key || process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('Missing OpenAI API Key');
+  return `[OpenAI ${agent.model}] Analyzed and processed: ${task.description}. Used tools: none.`;
+  // ↑ STUB — nigdy nie wywołuje https://api.openai.com
+}</span></div>
+        </div>
+      </div>
+
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Krytyczny</span> Dziesiątki endpointów API to "no-ops"</div>
+        <div class="finding-desc">
+          Np. <code>PATCH /agents/:id/budget</code>, <code>PATCH /agents/:id/active</code>, <code>PATCH /agents/:id/parent</code>, <code>DELETE /agents/:id</code> (nie usuwa z bazy), <code>PATCH /tasks/:id/priority</code>, <code>POST /agents/:id/tools</code>, <code>DELETE /agents/:id/tools/:tool_id</code> — wszystkie zwracają <code>{ success: true }</code> bez dotknięcia bazy danych.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Template apply hardkoduje companyId = 1</div>
+        <div class="finding-desc">
+          <code>router.post('/templates/:id/apply')</code> zawiera <code>const companyId = 1; // Default</code>. W środowisku multi-company to poważny błąd — każdy szablon zawsze nadpisze dane pierwszej firmy.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Potencjalne nieskończone pętle w heartbeat</div>
+        <div class="finding-desc">
+          Delegacja via <code>@mentions</code> tworzy nowe zadania bez limitu głębokości. Podobnie słowo kluczowe <code>FEEDBACK</code> w odpowiedzi LLM tworzy kolejne zadanie. Brak <code>max_delegation_depth</code> może doprowadzić do eksplozji zadań i nieskończonej pętli kosztów.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Post-factum approval logic jest koncepcyjnie odwrócona</div>
+        <div class="finding-desc">
+          System wywołuje LLM, a następnie sprawdza reguły kosztowe. Jeśli koszt przekracza próg, zadanie jest "blokowane" — ale pieniądze już zostały wydane. Pre-approval check powinien być przed wywołaniem LLM.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== BEZPIECZEŃSTWO ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-red">🔐</div>
+      <h2>Bezpieczeństwo</h2>
+      <span class="section-score ss-orange">5/10</span>
+    </div>
+    <div class="findings">
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Krytyczny</span> Brak jakiejkolwiek autoryzacji/autentykacji</div>
+        <div class="finding-desc">
+          Każdy kto ma dostęp do serwera może czytać i modyfikować dane wszystkich firm, agentów i zadań. Brak JWT, session, API key middleware — nawet podstawowego. Przed deployment na publiczny serwer to must-have.
+        </div>
+      </div>
+
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Krytyczny</span> API Keys agentów w plain-text w SQLite</div>
+        <div class="finding-desc">
+          Kolumna <code>agents.api_key TEXT</code> przechowuje klucze OpenAI/Anthropic/Google bez szyfrowania. Dump bazy = wszystkie klucze ujawnione. Należy używać AES-256-GCM z kluczem z env lub dedykowanego vault (np. HashiCorp Vault / AWS Secrets Manager).
+        </div>
+      </div>
+
+      <div class="finding bad">
+        <div class="finding-title"><span class="badge badge-bad">✗ Krytyczny</span> CORS wildcard — brak restrykcji origin</div>
+        <div class="finding-desc">
+          <code>app.use(cors())</code> bez konfiguracji pozwala na requesty z dowolnej domeny. W produkcji: <code>cors({ origin: process.env.FRONTEND_URL })</code>.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> vm.Script nie jest prawdziwym sandboxem</div>
+        <div class="finding-desc">
+          Node.js <code>vm</code> module nie izoluje całkowicie — znane są techniki ucieczki z kontekstu vm. Do bezpiecznego eval wyrażeń matematycznych lepiej użyć <code>mathjs</code> (ma własny bezpieczny parser) lub <code>isolated-vm</code>.
+          <div class="code-block"><span class="code-comment">// Obecne (ryzykowne):</span>
+const script = new vm.Script(`result = ${args.expression};`);
+<span class="code-comment">// Zalecane:</span>
+<span class="code-green">import { evaluate } from 'mathjs';
+const result = evaluate(args.expression);</span></div>
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Dobra praktyka</span> Whitelist komend bash + path traversal guard</div>
+        <div class="finding-desc">
+          Tool <code>bash</code> ma whitelist: <code>['echo', 'date', 'ls', 'cat', 'pwd', 'wc', 'head', 'tail']</code>. <code>file_read</code> / <code>file_write</code> sprawdzają czy ścieżka nie wychodzi poza <code>WORKSPACE_DIR</code>. Dobry fundament.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Dobra praktyka</span> HTTPS-only dla api_call + ograniczenie rozmiaru odpowiedzi</div>
+        <div class="finding-desc">
+          Tool <code>api_call</code> odrzuca URL bez <code>https://</code> i tnie odpowiedź do 1000 znaków. Chroni przed SSRF i exfiltrацją.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> API Keys w store Zustand → localStorage</div>
+        <div class="finding-desc">
+          Test w <code>store.test.js</code> potwierdza: <code>JSON.parse(localStorage.getItem('apiKeys'))</code>. Klucze API w localStorage są dostępne dla każdego skryptu na stronie (XSS). Rozważyć sessionStorage lub backend-side storage.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Brak rate limitingu na API</div>
+        <div class="finding-desc">
+          Brak <code>express-rate-limit</code> — endpoint <code>/api/tasks</code> można wywołać 1000x/s i zasypać agentów zadaniami. Rate limiter istnieje w schemacie bazy (tabela <code>agent_rate_limits</code>), ale nie jest podłączony do API warstwy HTTP.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Brak walidacji wejścia (Zod / Joi)</div>
+        <div class="finding-desc">
+          Endpointy jak <code>POST /agents</code> przyjmują <code>req.body</code> bez walidacji. Brak sprawdzenia czy <code>model</code> ma właściwy format, czy <code>api_key</code> nie jest pusty, czy <code>company_id</code> istnieje w bazie. Podatne na SQL injection przez concatenację (choć better-sqlite3 używa prepared statements, co chroni w większości przypadków).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TESTY ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-green">🧪</div>
+      <h2>Pokrycie testami</h2>
+      <span class="section-score ss-green">9/10</span>
+    </div>
+    <div class="findings">
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Wyróżnienie</span> 39 plików testów — pokrycie komponent po komponencie</div>
+        <div class="finding-desc">
+          Każdy komponent frontendowy (29 komponentów) ma dedykowany plik <code>.test.jsx</code>. Backend pokryty jest 8 plikami testów (api, db, heartbeat, llm, rateLimits, schema, server, tools). <code>store.test.js</code> testuje state management. To jest rzadko spotykana dyscyplina.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Realny test API z supertest + izolacja bazy testowej</div>
+        <div class="finding-desc">
+          Backend używa <code>supertest</code> do integracyjnych testów HTTP. <code>helpers.js</code> tworzy izolowaną bazę testową (<code>setupTestDb()</code>), co zapobiega zanieczyszczeniu danych między testami.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> CI buduje obrazy Docker przy każdym push</div>
+        <div class="finding-desc">
+          GitHub Actions workflow uruchamia <code>docker compose build</code> przy push/PR na main. Minimalny, ale działający pipeline — gwarantuje że Dockerfile się nie rozjeżdża z kodem.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> CI nie uruchamia testów — tylko build</div>
+        <div class="finding-desc">
+          Workflow <code>docker-build.yml</code> robi tylko <code>docker compose build</code>. Brak kroku <code>npm test</code> — PR z broken tests może zostać zmergowany. Dodać krok: <code>docker compose run backend npm test</code>.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Brak coverage reportu i progów minimalnych</div>
+        <div class="finding-desc">
+          Vitest może generować raporty coverage (V8/Istanbul). Warto dodać <code>vitest --coverage</code> i ustawić próg np. 70% statements, co automatycznie wymusi utrzymanie jakości.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DEVOPS ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-purple">🐳</div>
+      <h2>DevOps i Developer Experience</h2>
+      <span class="section-score ss-blue">8/10</span>
+    </div>
+    <div class="findings">
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Docker z health-checkami, named volumes i HMR</div>
+        <div class="finding-desc">
+          Backend ma właściwy <code>healthcheck</code> z retries i <code>start_period</code>. Frontend jest zależny od healthy backendu (<code>depends_on: condition: service_healthy</code>). SQLite persystuje w named volume. HMR WebSocket na dedykowanym porcie 24678.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Oddzielne compose dla dev i prod</div>
+        <div class="finding-desc">
+          <code>docker-compose.yml</code> (dev) używa hot-reload volumes i target <code>dev</code>. <code>docker-compose.prod.yml</code> używa target <code>base</code>, <code>restart: unless-stopped</code>, inny port. Właściwe rozdzielenie środowisk.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> SQLite WAL mode + foreign_keys + busy_timeout</div>
+        <div class="finding-desc">
+          <code>db.pragma('journal_mode = WAL')</code> — lepsza współbieżność dla SQLite. <code>foreign_keys = ON</code> — integralność referencyjna. <code>busy_timeout = 5000</code> — unika "database is locked" przy równoległych zapisach z heartbeat.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Prod frontend serwowany przez <code>vite preview</code></div>
+        <div class="finding-desc">
+          <code>docker-compose.prod.yml</code> uruchamia <code>npm run build && npm run preview</code>. Vite preview nie jest przeznaczony do produkcji — brak gzipowania, nagłówków cache, security headers. W produkcji: zbudować statyczne pliki i serwować przez Nginx.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Brak HSTS, CSP, X-Frame-Options</div>
+        <div class="finding-desc">
+          Żaden z serwerów (Express ani Vite) nie ustawia security headers. Minimum to <code>helmet()</code> dla Express w produkcji.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> SQLite nie skaluje się horyzontalnie</div>
+        <div class="finding-desc">
+          Dla jednego serwera i jednej firmy SQLite jest w porządku. Przy multi-instance deployment (load balancer) i wielu firmach należy rozważyć PostgreSQL + libSQL (Turso) lub PlanetScale.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== JAKOŚĆ KODU ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-yellow">💎</div>
+      <h2>Jakość kodu i wzorce</h2>
+      <span class="section-score ss-yellow">7/10</span>
+    </div>
+    <div class="findings">
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Spójna architektura ESM w całym projekcie</div>
+        <div class="finding-desc">
+          Zarówno backend jak i frontend używają ES Modules (<code>"type": "module"</code>). Import/export везде — brak mieszania CJS i ESM, co eliminuje klasyczne pułapki Node.js.
+        </div>
+      </div>
+
+      <div class="finding good">
+        <div class="finding-title"><span class="badge badge-good">✓ Mocny punkt</span> Tryb demo z polskimi przykładami — dobry UX onboarding</div>
+        <div class="finding-desc">
+          <code>getDemoResponse()</code> generuje realistyczne polskie odpowiedzi dla różnych ról agentów (Researcher, ContentWriter, Analyst). Użytkownik może zobaczyć jak system działa bez podawania kluczy API.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Leniwe ładowanie komponentów — brak code-splitting</div>
+        <div class="finding-desc">
+          <code>App.jsx</code> importuje wszystkie 22 komponenty statycznie na górze. Przy rozrastaniu się projektu: <code>React.lazy(() => import('./components/CostDashboard'))</code> z <code>Suspense</code> znacznie zmniejszy initial bundle.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Brak TypeScript</div>
+        <div class="finding-desc">
+          Cały projekt w plain JavaScript. Przy 14 tabelach SQLite i złożonym state (Zustand) TypeScript znacznie ułatwiłby refaktoring i wykrywanie błędów. Migracja stopniowa przez <code>allowJs: true</code> w tsconfig jest możliwa.
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="finding-title"><span class="badge badge-warn">⚠ Uwaga</span> Koszt LLM — uproszczone kalkulacje</div>
+        <div class="finding-desc">
+          OpenAI/Anthropic mają <code>cost = 0.01</code> (hardcoded). Gemini liczy koszt jako <code>0.001</code> per call niezależnie od tokenów. Rzeczywiste kalkulacje wymagają zliczania tokenów z odpowiedzi API i mnożenia przez ceny per 1M tokenów.
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="finding-title"><span class="badge badge-info">ℹ Info</span> Brak ESLint / Prettier</div>
+        <div class="finding-desc">
+          Brak pliku <code>.eslintrc</code> ani <code>.prettierrc</code>. W projekcie wieloosobowym formatowanie kodu może się rozjechać. Vitest nie zastępuje lintera.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROADMAP ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon si-orange">🚀</div>
+      <h2>Plan działań (priorytetyzacja)</h2>
+    </div>
+    <div class="action-list">
+      <div class="action-item">
+        <div class="action-prio p1">P1</div>
+        <div class="action-content">
+          <div class="action-title">Zaimplementuj prawdziwe callOpenAI() i callAnthropic()</div>
+          <div class="action-desc">Użyj oficjalnych SDK: <code>openai</code> npm package i <code>@anthropic-ai/sdk</code>. Bez tego core product nie działa dla 2 z 3 głównych providerów.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p1">P1</div>
+        <div class="action-content">
+          <div class="action-title">Dodaj middleware autoryzacji (JWT lub API Key)</div>
+          <div class="action-desc">Minimalnie: <code>express-jwt</code> lub własny middleware sprawdzający Bearer token. Bez auth produkcja jest wykluczona.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p1">P1</div>
+        <div class="action-content">
+          <div class="action-title">Zaszyfruj API keys agentów w bazie</div>
+          <div class="action-desc">AES-256-GCM z kluczem z <code>ENCRYPTION_KEY</code> env. Encrypt przy zapisie, decrypt przy odczycie w <code>callLLMWithTools()</code>.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p2">P2</div>
+        <div class="action-content">
+          <div class="action-title">Uzupełnij stub endpointy API (PATCH, DELETE)</div>
+          <div class="action-desc">Przynajmniej: budget, active flag, parent_id agenta, priority/archive zadań, agent tools CRUD. Bez tego UI nie może niczego realnie zmienić.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p2">P2</div>
+        <div class="action-content">
+          <div class="action-title">Dodaj limit głębokości delegacji + max retries dla FEEDBACK</div>
+          <div class="action-desc">Np. <code>max_delegation_depth = 5</code> i <code>max_feedback_iterations = 3</code> per parent_task_id. Chroni przed pętlą nieskończoną i runaway costs.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p2">P2</div>
+        <div class="action-content">
+          <div class="action-title">Dodaj testy do CI pipeline</div>
+          <div class="action-desc">W <code>docker-build.yml</code> dodać: <code>docker compose run --rm backend npm test</code> i <code>docker compose run --rm frontend npm test</code>.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p3">P3</div>
+        <div class="action-content">
+          <div class="action-title">Zastąp Vite preview Nginx w prod</div>
+          <div class="action-desc">Multi-stage Dockerfile: build step → skopiuj <code>dist/</code> do obrazu nginx:alpine. Dodaj gzip, cache headers, security headers.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p3">P3</div>
+        <div class="action-content">
+          <div class="action-title">Walidacja wejścia Zod na wszystkich endpointach</div>
+          <div class="action-desc"><code>npm install zod</code> i schematy dla każdego body. Zwracaj 400 z czytelnym błędem zamiast crashować na <code>undefined</code>.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p3">P3</div>
+        <div class="action-content">
+          <div class="action-title">Napraw pre-approval logic w heartbeat</div>
+          <div class="action-desc">Sprawdź reguły kosztowe PRZED wywołaniem LLM (np. na podstawie estimated_cost lub wymuszaj approval dla kosztownych modeli). Obecna logika jest post-factum.</div>
+        </div>
+      </div>
+      <div class="action-item">
+        <div class="action-prio p4">P4</div>
+        <div class="action-content">
+          <div class="action-title">Dodaj TypeScript, ESLint, Prettier</div>
+          <div class="action-desc">Stopniowa migracja: <code>allowJs: true</code>, zacząć od plików serwisów (llm.ts, tools.ts, heartbeat.ts). Dodać <code>eslint-config-airbnb-typescript</code>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SUMMARY TABLE ===== -->
+  <hr class="sep">
+  <h2 style="margin-bottom:16px; color:#fff">Podsumowanie ocen</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Wymiar</th>
+        <th>Ocena</th>
+        <th>Status</th>
+        <th>Komentarz</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Architektura systemu agentowego</td>
+        <td><span style="color:var(--yellow); font-weight:700">7/10</span></td>
+        <td><span class="badge badge-warn">Dobry szkielet</span></td>
+        <td>Heartbeat loop, delegation, approval rules — przemyślane. Luki w implementacji.</td>
+      </tr>
+      <tr>
+        <td>Implementacja LLM</td>
+        <td><span style="color:var(--red); font-weight:700">4/10</span></td>
+        <td><span class="badge badge-bad">Stub</span></td>
+        <td>Tylko Gemini działa. OpenAI i Anthropic zwracają statyczny tekst.</td>
+      </tr>
+      <tr>
+        <td>Bezpieczeństwo</td>
+        <td><span style="color:var(--orange); font-weight:700">5/10</span></td>
+        <td><span class="badge badge-medium">Ryzykowny</span></td>
+        <td>Brak auth, CORS wildcard, klucze plain-text. Dobre: bash whitelist, path guard.</td>
+      </tr>
+      <tr>
+        <td>Pokrycie testami</td>
+        <td><span style="color:var(--green); font-weight:700">9/10</span></td>
+        <td><span class="badge badge-good">Wyróżnienie</span></td>
+        <td>39 plików testów, każdy komponent pokryty. Jedyny brak: CI nie uruchamia testów.</td>
+      </tr>
+      <tr>
+        <td>DevOps / Docker</td>
+        <td><span style="color:var(--accent); font-weight:700">8/10</span></td>
+        <td><span class="badge badge-good">Solidny</span></td>
+        <td>Dev/prod compose, health-checks, named volumes, HMR. Prod frontend wymaga Nginx.</td>
+      </tr>
+      <tr>
+        <td>Jakość kodu</td>
+        <td><span style="color:var(--yellow); font-weight:700">7/10</span></td>
+        <td><span class="badge badge-warn">Dobra</span></td>
+        <td>Spójny ESM, czytelna struktura. Brak TypeScript, walidacji, linter.</td>
+      </tr>
+      <tr>
+        <td>Gotowość produkcyjna</td>
+        <td><span style="color:var(--red); font-weight:700">4/10</span></td>
+        <td><span class="badge badge-bad">Pre-beta</span></td>
+        <td>Świetna baza, ale stuby i brak auth blokują deployment.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="summary-bar">
+    <div>
+      <div class="sum-item-label">Krytycznych issues</div>
+      <div class="sum-item-val" style="color:var(--red)">5</div>
+    </div>
+    <div class="sum-divider">
+      <div class="sum-item-label">Ostrzeżeń</div>
+      <div class="sum-item-val" style="color:var(--yellow)">8</div>
+    </div>
+    <div class="sum-divider">
+      <div class="sum-item-label">Mocnych stron</div>
+      <div class="sum-item-val" style="color:var(--green)">9</div>
+    </div>
+  </div>
+
+  <div style="text-align:center; margin-top:32px; font-family:var(--mono); font-size:11px; color:var(--muted)">
+    Audyt wygenerowany automatycznie · smietas123PL/biuro-v3 · commit 1d6f509 · 23.03.2026
+  </div>
+
+</div>
+</body>
+</html>

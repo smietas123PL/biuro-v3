@@ -55,24 +55,25 @@ export async function processAgents() {
           
           // 8. Wykryj delegację (@mentions)
           const mentions = llmResult.text.match(/@(\w+)/g);
-          if (mentions) {
+          const MAX_DEPTH = 5;
+          if (mentions && (task.depth || 0) < MAX_DEPTH) {
             mentions.forEach(mention => {
                const targetName = mention.substring(1);
                const targetAgent = db.prepare('SELECT id FROM agents WHERE name = ? AND company_id = ?').get(targetName, agent.company_id);
                if (targetAgent) {
-                  db.prepare('INSERT INTO tasks (company_id, agent_id, description, parent_task_id, delegated_from_agent_id) VALUES (?, ?, ?, ?, ?)')
-                    .run(agent.company_id, targetAgent.id, `Zadanie od ${agent.name}:\n${llmResult.text}`, task.id, agent.id);
+                  db.prepare('INSERT INTO tasks (company_id, agent_id, description, parent_task_id, delegated_from_agent_id, depth) VALUES (?, ?, ?, ?, ?, ?)')
+                    .run(agent.company_id, targetAgent.id, `Zadanie od ${agent.name}:\n${llmResult.text}`, task.id, agent.id, (task.depth || 0) + 1);
                   
                   db.prepare('INSERT INTO audit_log (company_id, agent_id, agent_name, action, detail) VALUES (?, ?, ?, ?, ?)')
-                    .run(agent.company_id, agent.id, agent.name, 'TASK_DELEGATED', `Delegated to @${targetName}`);
+                    .run(agent.company_id, agent.id, agent.name, 'TASK_DELEGATED', `Delegated to @${targetName} (depth: ${(task.depth || 0) + 1})`);
                }
             });
           }
           
           // 9. Wykryj pętlę feedbacku (slowo kluczowe "FEEDBACK")
-          if (llmResult.text.includes('FEEDBACK') || llmResult.text.includes('NIEKOMPLETNE')) {
-             db.prepare('INSERT INTO tasks (company_id, agent_id, description, parent_task_id, priority) VALUES (?, ?, ?, ?, ?)')
-                .run(agent.company_id, agent.id, `POPRAWKA dla zadania:\n${task.description}\nKomentarz z systemu: Zwrócono FEEDBACK.`, task.id, 1);
+          if ((llmResult.text.includes('FEEDBACK') || llmResult.text.includes('NIEKOMPLETNE')) && (task.depth || 0) < MAX_DEPTH) {
+             db.prepare('INSERT INTO tasks (company_id, agent_id, description, parent_task_id, priority, depth) VALUES (?, ?, ?, ?, ?, ?)')
+                .run(agent.company_id, agent.id, `POPRAWKA dla zadania:\n${task.description}\nKomentarz z systemu: Zwrócono FEEDBACK.`, task.id, 1, (task.depth || 0) + 1);
           }
           
           // 10. Save response

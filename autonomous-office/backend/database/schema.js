@@ -54,6 +54,7 @@ export function initializeDatabase() {
       delegated_from_agent_id INTEGER,
       delegate_reason TEXT,
       parent_task_id INTEGER,
+      depth INTEGER DEFAULT 0,
       retry_count INTEGER DEFAULT 0,
       max_retries INTEGER DEFAULT 3,
       last_error TEXT,

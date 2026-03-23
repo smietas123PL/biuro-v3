@@ -1,7 +1,26 @@
 import express from 'express';
+import { z } from 'zod';
 import db from '../db.js';
+import { encrypt } from '../utils/encryption.js';
 
 const router = express.Router();
+
+// Validation Schemas
+const agentSchema = z.object({
+  company_id: z.number().int().positive(),
+  name: z.string().min(2),
+  role: z.string().min(2),
+  model: z.string(),
+  api_key: z.string().optional().nullable()
+});
+
+const taskSchema = z.object({
+  company_id: z.number().int().positive(),
+  agent_id: z.number().int().positive(),
+  goal_id: z.number().int().positive().nullable().optional(),
+  description: z.string().min(5),
+  priority: z.number().int().min(0).optional().default(0)
+});
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 router.get('/audit', (req, res) => res.json(db.prepare('SELECT * FROM audit_log ORDER BY ts DESC LIMIT 100').all()));
@@ -96,23 +115,55 @@ router.post('/templates/:id/apply', (req, res) => {
 });
 
 // Agents
-router.get('/agents', (req, res) => res.json(db.prepare('SELECT * FROM agents').all()));
+router.get('/agents', (req, res) => {
+  const agents = db.prepare('SELECT * FROM agents').all();
+  // Mask API keys for security
+  res.json(agents.map(a => ({ ...a, api_key: a.api_key ? '***' : null })));
+});
 router.post('/agents', (req, res) => {
-  const { company_id, name, role, model, api_key } = req.body;
-  const info = db.prepare('INSERT INTO agents (company_id, name, role, model, api_key) VALUES (?, ?, ?, ?, ?)').run(company_id, name, role, model, api_key);
+  const result = agentSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  
+  const { company_id, name, role, model, api_key } = result.data;
+  const encryptedKey = api_key ? encrypt(api_key) : null;
+  const info = db.prepare('INSERT INTO agents (company_id, name, role, model, api_key) VALUES (?, ?, ?, ?, ?)').run(company_id, name, role, model, encryptedKey);
   res.json({ id: info.lastInsertRowid });
 });
 router.delete('/agents/:id', (req, res) => {
   db.prepare('DELETE FROM agents WHERE id = ?').run(req.params.id);
+  db.prepare('DELETE FROM tasks WHERE agent_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM agent_tools WHERE agent_id = ?').run(req.params.id);
   res.json({ success: true });
 });
-router.patch('/agents/:id/budget', (req, res) => res.json({ success: true }));
-router.patch('/agents/:id/active', (req, res) => res.json({ success: true }));
-router.patch('/agents/:id/parent', (req, res) => res.json({ success: true }));
+router.patch('/agents/:id/budget', (req, res) => {
+  const { budget } = req.body;
+  db.prepare('UPDATE agents SET budget = ?, initial_budget = ? WHERE id = ?').run(budget, budget, req.params.id);
+  res.json({ success: true });
+});
+router.patch('/agents/:id/active', (req, res) => {
+  const { active } = req.body;
+  db.prepare('UPDATE agents SET active = ? WHERE id = ?').run(active ? 1 : 0, req.params.id);
+  res.json({ success: true });
+});
+router.patch('/agents/:id/parent', (req, res) => {
+  const { parent_id } = req.body;
+  db.prepare('UPDATE agents SET parent_id = ? WHERE id = ?').run(parent_id, req.params.id);
+  res.json({ success: true });
+});
 router.get('/agents/:id/responses', (req, res) => res.json([]));
-router.get('/agents/:id/tools', (req, res) => res.json([]));
-router.post('/agents/:id/tools', (req, res) => res.json({ success: true }));
-router.delete('/agents/:id/tools/:tool_id', (req, res) => res.json({ success: true }));
+router.get('/agents/:id/tools', (req, res) => {
+  const tools = db.prepare('SELECT tools.* FROM tools JOIN agent_tools ON tools.id = agent_tools.tool_id WHERE agent_tools.agent_id = ?').all(req.params.id);
+  res.json(tools);
+});
+router.post('/agents/:id/tools', (req, res) => {
+  const { tool_id } = req.body;
+  db.prepare('INSERT OR IGNORE INTO agent_tools (agent_id, tool_id) VALUES (?, ?)').run(req.params.id, tool_id);
+  res.json({ success: true });
+});
+router.delete('/agents/:id/tools/:tool_id', (req, res) => {
+  db.prepare('DELETE FROM agent_tools WHERE agent_id = ? AND tool_id = ?').run(req.params.id, req.params.tool_id);
+  res.json({ success: true });
+});
 router.get('/agents/:id/tasks', (req, res) => res.json([]));
 router.get('/agents/:id/queue', (req, res) => res.json([]));
 router.get('/agents/:id/rate-limits', (req, res) => res.json({}));
@@ -157,8 +208,11 @@ router.get('/tasks/pending/approvals', (req, res) => {
   res.json(db.prepare('SELECT * FROM tasks WHERE requires_approval = 1 AND approved = 0 ORDER BY created_at DESC').all());
 });
 router.post('/tasks', (req, res) => {
-  const { company_id, agent_id, goal_id, description } = req.body;
-  const info = db.prepare('INSERT INTO tasks (company_id, agent_id, goal_id, description) VALUES (?, ?, ?, ?)').run(company_id, agent_id, goal_id, description);
+  const result = taskSchema.safeParse(req.body);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  
+  const { company_id, agent_id, goal_id, description, priority } = result.data;
+  const info = db.prepare('INSERT INTO tasks (company_id, agent_id, goal_id, description, priority) VALUES (?, ?, ?, ?, ?)').run(company_id, agent_id, goal_id, description, priority);
   res.json({ id: info.lastInsertRowid });
 });
 router.patch('/tasks/:id/approve', (req, res) => {
@@ -169,11 +223,23 @@ router.patch('/tasks/:id/reject', (req, res) => {
   db.prepare('UPDATE tasks SET status = \'rejected\' WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
-router.patch('/tasks/:id/done', (req, res) => res.json({ success: true }));
-router.patch('/tasks/:id/priority', (req, res) => res.json({ success: true }));
-router.patch('/tasks/:id/schedule', (req, res) => res.json({ success: true }));
-router.patch('/tasks/:id/archive', (req, res) => res.json({ success: true }));
-router.patch('/tasks/:id/unarchive', (req, res) => res.json({ success: true }));
+router.patch('/tasks/:id/done', (req, res) => {
+  db.prepare('UPDATE tasks SET status = \'completed\' WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+router.patch('/tasks/:id/priority', (req, res) => {
+  const { priority } = req.body;
+  db.prepare('UPDATE tasks SET priority = ? WHERE id = ?').run(priority, req.params.id);
+  res.json({ success: true });
+});
+router.patch('/tasks/:id/archive', (req, res) => {
+  db.prepare('UPDATE tasks SET archived_at = datetime(\'now\') WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+router.patch('/tasks/:id/unarchive', (req, res) => {
+  db.prepare('UPDATE tasks SET archived_at = NULL WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
 router.post('/tasks/:id/delegate', (req, res) => res.json({ success: true }));
 router.get('/tasks/:id/feedback-chain', (req, res) => res.json([]));
 router.get('/tasks/:id/continuation-chain', (req, res) => res.json([]));

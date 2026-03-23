@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import apiRouter from './routes/api.js';
 import { initializeDatabase } from './database/schema.js';
 import { runHeartbeat } from './services/heartbeat.js';
@@ -7,8 +8,26 @@ import { runHeartbeat } from './services/heartbeat.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(helmet());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+}));
 app.use(express.json());
+
+// Basic Authorization Middleware
+app.use((req, res, next) => {
+  if (req.path === '/api/health' || process.env.NODE_ENV === 'test') return next();
+  
+  const apiKey = req.headers['x-api-key'];
+  const expectedKey = process.env.APP_API_KEY || 'biuro-secret-key';
+  
+  if (!apiKey || apiKey !== expectedKey) {
+    return res.status(401).json({ error: 'Unauthorized: Missing or invalid X-API-Key' });
+  }
+  next();
+});
 
 // Initialize database
 initializeDatabase();

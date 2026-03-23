@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import vm from 'vm';
+import { evaluate } from 'mathjs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -20,11 +20,8 @@ export const toolsHandlers = {
   },
   calculate: async (args) => {
     try {
-      // Secure sandbox execution
-      const script = new vm.Script(`result = ${args.expression};`);
-      const context = vm.createContext({ result: null });
-      script.runInContext(context, { timeout: 1000 });
-      return { result: context.result };
+      const result = evaluate(args.expression);
+      return { result };
     } catch (e) {
       return { error: 'Calculation failed: ' + e.message };
     }
