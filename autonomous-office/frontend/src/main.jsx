@@ -7,11 +7,17 @@ import './styles/globals.css';
 // Global Fetch interceptor for Authorization
 const originalFetch = window.fetch;
 window.fetch = async (url, options = {}) => {
-  const headers = new Headers(options.headers || {});
-  if (!headers.has('X-API-Key')) {
-    headers.set('X-API-Key', import.meta.env.VITE_APP_API_KEY || 'biuro-secret-key');
+  try {
+    const headers = new Headers(options.headers || {});
+    if (!headers.has('X-API-Key')) {
+      const apiKey = import.meta.env.VITE_APP_API_KEY || 'biuro-secret-key';
+      headers.set('X-API-Key', apiKey);
+    }
+    return await originalFetch(url, { ...options, headers });
+  } catch (error) {
+    console.error('Fetch interceptor error:', error);
+    throw error;
   }
-  return originalFetch(url, { ...options, headers });
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(
